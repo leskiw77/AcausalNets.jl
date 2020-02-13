@@ -21,5 +21,13 @@ module Inference
         infer,
         infer_join_tree,
         infer_naive,
-        infer_belief
+        infer_belief,
+        single_message_pass,
+        JoinTree,
+        shallowcopy,
+        sub_system,
+        distribution,
+        multiply_star,
+        divide_star,
+        variables
 end # module

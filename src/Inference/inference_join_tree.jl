@@ -70,11 +70,11 @@ function infer_join_tree(
                         vars_to_infer,
                         observations
                     )
-    propagated_jt = global_propagation(observations_jt)
+    propagated_jt = global_propagation(observations_jt, vars_to_infer)
     jt = normalize(propagated_jt)
     inferred_cluster = first([
             sys
-            for (i, sys) in jt.vertex_to_cluster
+            for (i, sys) in jt.edge_to_sepset
             if all([
                     v in variables(sys)
                     for v in vars_to_infer
@@ -94,7 +94,7 @@ end
 """
 Message passing, as described in http://pages.cs.wisc.edu/~dpage/ijar95.pdf
 """
-function single_message_pass(from_ind::Int, to_ind::Int, jt::JoinTree{S}) where S
+function single_message_pass(from_ind::Int, to_ind::Int, jt::JoinTree{S}, vars_to_infer::Vector{Variable}) where S
     if (from_ind, to_ind) in edges(jt.graph)
         jt = shallowcopy(jt)
         cluster_from = jt.vertex_to_cluster[from_ind]
@@ -118,19 +118,37 @@ function single_message_pass(from_ind::Int, to_ind::Int, jt::JoinTree{S}) where 
         new_cluster_to = S(variables(cluster_to), new_to_distribution)
         jt.vertex_to_cluster[to_ind] = new_cluster_to
     end
+
+    jt2 = normalize(jt)
+    inferred_cluster = first([
+            sys
+            for (i, sys) in jt2.edge_to_sepset
+            if all([
+                    v in variables(sys)
+                    for v in vars_to_infer
+                    ])
+        ])
+
+    inference_result = sub_system(inferred_cluster, vars_to_infer)
+
+    println("print start")
+
+    show(Base.stdout, "text/plain", real(distribution(inference_result)))
+    println("\nprint end")
+
     return jt
 end
 
 """
 Collect-evidence stage
 """
-function collect_evidence(cluster_ind::Int, cluster_marks::Vector{Bool}, jt::JoinTree)
+function collect_evidence(cluster_ind::Int, cluster_marks::Vector{Bool}, jt::JoinTree, vars_to_infer::Vector{Variable})
     jt = shallowcopy(jt)
     cluster_marks[cluster_ind] = false
     for neighbor in neighbors(jt.graph, cluster_ind)
         if cluster_marks[neighbor]
-            jt, cluster_marks = collect_evidence(neighbor, cluster_marks, jt)
-            jt = single_message_pass(neighbor, cluster_ind, jt)
+            jt, cluster_marks = collect_evidence(neighbor, cluster_marks, jt, vars_to_infer)
+            jt = single_message_pass(neighbor, cluster_ind, jt, vars_to_infer)
         end
 
     end
@@ -141,18 +159,18 @@ end
 """
 Distribute-evidence stage
 """
-function distribute_evidence(cluster_ind::Int, cluster_marks::Vector{Bool}, jt::JoinTree)
+function distribute_evidence(cluster_ind::Int, cluster_marks::Vector{Bool}, jt::JoinTree, vars_to_infer::Vector{Variable})
     jt = shallowcopy(jt)
     cluster_marks[cluster_ind] = false
     for neighbor in neighbors(jt.graph, cluster_ind)
         if cluster_marks[neighbor]
-            jt = single_message_pass(cluster_ind, neighbor, jt)
+            jt = single_message_pass(cluster_ind, neighbor, jt, vars_to_infer)
             # pass a message from cluster_ind to neighbor
         end
     end
     for neighbor in neighbors(jt.graph, cluster_ind)
         if cluster_marks[neighbor]
-            jt, cluster_mars = distribute_evidence(neighbor, cluster_marks, jt)
+            jt, cluster_mars = distribute_evidence(neighbor, cluster_marks, jt, vars_to_infer)
         end
     end
     jt, cluster_marks
@@ -161,11 +179,13 @@ end
 """
 Propagation of messages
 """
-function global_propagation(jt::JoinTree, start_ind=1)
+function global_propagation(jt::JoinTree, vars_to_infer::Vector{Variable}, start_ind=1)
     jt = shallowcopy(jt)
+    println("start")
+
     cluster_marks = [true for k in keys(jt.vertex_to_cluster)]
-    jt, cluster_marks = collect_evidence(start_ind, cluster_marks, jt)
+    jt, cluster_marks = collect_evidence(start_ind, cluster_marks, jt, vars_to_infer)
     cluster_marks = [true for k in keys(jt.vertex_to_cluster)]
-    jt, cluster_marks = distribute_evidence(start_ind, cluster_marks, jt)
+    jt, cluster_marks = distribute_evidence(start_ind, cluster_marks, jt, vars_to_infer)
     return jt
 end
