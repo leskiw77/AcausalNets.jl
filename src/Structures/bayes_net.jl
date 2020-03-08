@@ -10,7 +10,8 @@ import AcausalNets.Systems:
     expand_parents,
     parents,
     variables,
-    variables_names
+    variables_names,
+    InitialNodesSet
 import AcausalNets.Common: VariableName, Variable
 import Compat.Iterators: flatten
 
@@ -65,3 +66,14 @@ function Base.push!(dbn::DiscreteBayesNet{S}, system::S) where S <: DiscreteSyst
 
 end
 
+function pushMany(nodes_set::InitialNodesSet, system)
+    dbn_vec = deepcopy(nodes_set.discrete_system_vec)
+    while(!isempty(dbn_vec))
+        for (index, dbn) in enumerate(dbn_vec)
+            if check_parents(dbn, system)
+                push!(system, dbn)
+                deleteat!(dbn_vec, index)
+            end
+        end
+    end
+end

@@ -9,7 +9,8 @@ module AcausalNets
     include_module("Structures")
     include_module("Inference")
     include_module("Representation")
-#
+    include_module("GraphImport")
+
     using Reexport
     @reexport using AcausalNets.Algebra
     @reexport using AcausalNets.Common
@@ -17,5 +18,6 @@ module AcausalNets
     @reexport using AcausalNets.Structures
     @reexport using AcausalNets.Inference
     @reexport using AcausalNets.Representation
+    @reexport using AcausalNets.GraphImport
 
 end # module
