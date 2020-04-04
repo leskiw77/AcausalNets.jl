@@ -226,6 +226,18 @@ function moral_graph(dbn::DiscreteBayesNet)::MoralGraph
     return result
 end
 
+function add_children_of_quantum(dbn::DiscreteBayesNet, mg::MoralGraph, parent::Variable)
+        parent_ind = variable_to_node(parent, dbn)
+        for sys in systems(dbn)
+                if parent in sys.parents
+                        children_ind = [variable_to_node(x, dbn) for x in sys.variables]
+                        for child_ind in children_ind
+                                add_edge!(mg, child_ind, parent_ind)
+                        end
+                end
+        end
+end
+
 
 """
 step which is not specified in the article an introduced by us
@@ -245,6 +257,13 @@ function enforce_clique(dbn::DiscreteBayesNet, mg::MoralGraph, vars_to_infer::Ve
             end
         end
     end
+
+    for sys in systems(dbn)
+        if(!isdiag(sys.distribution))
+            [add_children_of_quantum(dbn, mg_enforced, v) for v in sys.variables]
+        end
+    end
+
     return mg_enforced
 end
 
