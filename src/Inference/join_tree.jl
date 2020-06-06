@@ -226,29 +226,12 @@ function moral_graph(dbn::DiscreteBayesNet)::MoralGraph
     return result
 end
 
-function get_children_of_quantum(dbn::DiscreteBayesNet, parent::Variable)
-        group = Set{Int}()
-        for sys in systems(dbn)
-                if parent in sys.parents
-                        children_ind = [variable_to_node(x, dbn) for x in sys.variables]
-                        for child_ind in children_ind
-                            push!(group, child_ind)
-                        end
-                end
-        end
-        group
-end
 
 function enforce_clique_for_quantum_systes(dbn::DiscreteBayesNet, mg::MoralGraph)
     for sys in systems(dbn)
         if(!isdiag(sys.distribution))
-            clique = Set{Int}()
-            for v in sys.variables
-                    parent_ind = variable_to_node(v, dbn)
-                    children_inds = get_children_of_quantum(dbn, v)
-                    push!(children_inds, parent_ind)
-                    clique = union(clique, children_inds)
-            end
+            quantum_node = system_to_node(sys, dbn)
+            clique = union(all_neighbors(dbn.dag, system_to_node(sys, dbn)), quantum_node)
 
             for c1 in clique
                 for c2 in clique
